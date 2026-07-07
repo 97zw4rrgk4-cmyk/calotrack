@@ -16,6 +16,7 @@
 :root{
   --navy:#00323E; --teal:#007D9F; --yellow:#FAB314; --light:#F2F6F7;
   --red:#C0392B; --grey:#5C7B83; --border:#D6E3E6; --card:#FFFFFF;
+  --green:#2E8B57;
 }
 *{box-sizing:border-box; margin:0; padding:0;}
 html,body{height:100%;}
@@ -48,6 +49,25 @@ h2{font-size:15px; font-weight:700; margin:18px 0 8px;}
 .bilan .val.warn{color:var(--red);}
 .bilan .unit{color:#6B8A92; font-size:11px;}
 .subinfo{color:var(--grey); font-size:12px; margin-bottom:8px; line-height:1.5;}
+.panel{background:var(--card); border-radius:12px; padding:12px 14px; margin-bottom:8px;}
+.mrow{margin-bottom:9px;}
+.mrow:last-child{margin-bottom:0;}
+.mrow .top{display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;}
+.mrow .top .n{font-weight:600;}
+.mrow .top .v{color:var(--grey);}
+.track{height:7px; background:#E4EEF0; border-radius:4px; overflow:hidden;}
+.fill{height:100%; border-radius:4px; background:var(--teal);}
+.fill.over{background:var(--yellow);}
+.fill.limit-over{background:var(--red);}
+details.micros{background:var(--card); border-radius:12px; padding:0; margin-bottom:8px; overflow:hidden;}
+details.micros summary{
+  list-style:none; cursor:pointer; padding:13px 14px;
+  font-size:14px; font-weight:700; display:flex; justify-content:space-between;
+}
+details.micros summary::-webkit-details-marker{display:none;}
+details.micros summary::after{content:'▾'; color:var(--teal);}
+details.micros[open] summary::after{content:'▴';}
+details.micros .inner{padding:0 14px 12px;}
 textarea, input[type="password"], input[type="text"]{
   width:100%; background:var(--card); border:1px solid var(--border);
   border-radius:12px; padding:12px; font-size:16px; color:var(--navy);
@@ -78,7 +98,7 @@ button.ghost{
   display:flex; align-items:center; gap:10px;
   background:var(--card); border-radius:12px; padding:12px; margin-bottom:8px;
 }
-.meal .txt{flex:1; min-width:0;}
+.meal .txt{flex:1; min-width:0; cursor:pointer;}
 .meal .desc{font-size:14px; overflow:hidden; text-overflow:ellipsis;
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;}
 .meal .kcal{color:var(--teal); font-size:13px; font-weight:600; margin-top:2px;}
@@ -92,11 +112,11 @@ button.ghost{
 .chart .bar{width:min(24px,80%); border-radius:6px; background:var(--teal);}
 .chart .bar.over{background:var(--yellow);}
 .chart .d{font-size:11px; margin-top:5px;}
-.chips{display:flex; gap:10px; flex-wrap:wrap;}
+.chips{display:flex; gap:8px; flex-wrap:wrap;}
 .chips button{
   border:1px solid var(--teal); background:transparent; color:var(--teal);
-  border-radius:20px; padding:8px 16px; font-weight:600; font-family:inherit;
-  font-size:14px; cursor:pointer;
+  border-radius:20px; padding:8px 14px; font-weight:600; font-family:inherit;
+  font-size:13px; cursor:pointer;
 }
 .chips button[aria-pressed="true"]{background:var(--teal); color:#fff;}
 .frow{
@@ -116,9 +136,29 @@ button.ghost{
   bottom:calc(20px + env(safe-area-inset-bottom));
   background:var(--navy); color:#fff; border-radius:12px; padding:13px 16px;
   font-size:14px; text-align:center; opacity:0; pointer-events:none;
-  transition:opacity .25s; z-index:50;
+  transition:opacity .25s; z-index:60;
 }
 #toast.show{opacity:1;}
+#modal-bg{
+  position:fixed; inset:0; background:rgba(0,30,38,.55); z-index:40;
+  display:flex; align-items:flex-end; justify-content:center;
+}
+#modal-bg[hidden]{display:none;}
+#modal{
+  background:var(--light); width:100%; max-width:560px;
+  max-height:86vh; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  border-radius:18px 18px 0 0;
+  padding:16px 16px calc(24px + env(safe-area-inset-bottom));
+}
+#modal h3{font-size:16px; margin-bottom:2px;}
+#modal .when{color:var(--grey); font-size:12px; margin-bottom:10px;}
+table.items{width:100%; border-collapse:collapse; background:var(--card);
+  border-radius:12px; overflow:hidden; font-size:13px; margin-bottom:10px;}
+table.items th, table.items td{padding:8px 8px; text-align:right;}
+table.items th:first-child, table.items td:first-child{text-align:left;}
+table.items th{background:#E8F1F3; color:var(--teal); font-size:11px;
+  text-transform:uppercase; letter-spacing:.3px;}
+table.items tr + tr td{border-top:1px solid #EDF3F5;}
 @media (prefers-reduced-motion: reduce){ #toast{transition:none;} }
 .spin{
   display:inline-block; width:16px; height:16px; vertical-align:-3px;
@@ -146,6 +186,14 @@ button.ghost{
     <div><div class="lbl">Reste</div><div class="val" id="b-reste">0</div><div class="unit" id="b-objectif">/ 2200</div></div>
   </div>
   <p class="subinfo" id="jour-sub"></p>
+
+  <div class="panel" id="macros-panel"></div>
+  <details class="micros">
+    <summary>Micronutriments du jour (estimations)</summary>
+    <div class="inner" id="micros-panel"></div>
+  </details>
+  <p class="subinfo" id="legacy-note" hidden></p>
+
   <button class="ghost" id="btn-sync">📥 Coller la synchro Santé</button>
   <p class="subinfo" id="sync-info">Lance le raccourci « Sync Santé », puis touche ce bouton.</p>
 
@@ -164,7 +212,8 @@ button.ghost{
   </div>
 
   <h2>Repas du jour</h2>
-  <div id="meal-list"><p class="subinfo">Rien d'enregistré pour l'instant.</p></div>
+  <p class="subinfo">Touche un repas pour revoir le détail des calculs.</p>
+  <div id="meal-list"></div>
 </section>
 
 <section id="view-semaine" hidden>
@@ -197,7 +246,14 @@ button.ghost{
   <div class="frow"><label for="in-taille">Taille (cm)</label><input id="in-taille" type="text" inputmode="numeric"></div>
   <div class="frow"><label for="in-poids">Poids de secours (kg)</label><input id="in-poids" type="text" inputmode="decimal"></div>
   <p class="subinfo">Le poids réel vient de la synchro Santé (balance Withings) quand elle est faite.</p>
+
+  <h2>Niveau d'activité</h2>
+  <div class="chips" id="chips-activite"></div>
+  <p class="subinfo" id="besoins-info"></p>
+
   <div class="frow"><label for="in-objectif">Objectif (kcal/jour)</label><input id="in-objectif" type="text" inputmode="numeric"></div>
+  <p class="subinfo">Les cibles de protéines, glucides et lipides se calculent sur cet objectif,
+  ton poids et ton niveau d'activité. <button class="linkbtn" id="btn-use-tdee">Utiliser le besoin de maintien comme objectif</button></p>
 
   <h2>Sauvegarde</h2>
   <p class="subinfo">Les données vivent dans ce téléphone. Exporte régulièrement : vider les
@@ -207,9 +263,22 @@ button.ghost{
   <button class="ghost" id="btn-import">Restaurer une sauvegarde</button>
 
   <button class="primary" id="btn-save-settings">Enregistrer les réglages</button>
+  <p class="subinfo" style="margin-top:10px">Repères nutritionnels : valeurs indicatives pour
+  adulte, à titre informatif — pas un avis médical.</p>
 </section>
 
 </main>
+
+<div id="modal-bg" hidden>
+  <div id="modal" role="dialog" aria-modal="true" aria-label="Détail du repas">
+    <h3 id="modal-title"></h3>
+    <p class="when" id="modal-when"></p>
+    <div id="modal-body"></div>
+    <button class="ghost" id="btn-reanalyse">Réanalyser ce repas</button>
+    <button class="primary" id="btn-close-modal">Fermer</button>
+  </div>
+</div>
+
 <div id="toast" role="status"></div>
 
 <script>
@@ -247,8 +316,6 @@ function bmrProrata(bmrJournalier, maintenant){
   return Math.round(bmrJournalier * fraction);
 }
 
-/* Dépense du jour : basal mesuré (Apple Watch) > 300 kcal → on l'utilise ;
-   sinon BMR calculé prorata + actives synchronisées (Whoop → Santé → raccourci). */
 function computeExpenditure(activeKcal, basalKcal, bmrProrataKcal){
   if (basalKcal > 300) {
     return { total: Math.round(basalKcal + activeKcal), active: Math.round(activeKcal), source: 'sante' };
@@ -259,8 +326,6 @@ function computeExpenditure(activeKcal, basalKcal, bmrProrataKcal){
   return { total: bmrProrataKcal, active: 0, source: 'calc' };
 }
 
-/* Payload du raccourci : "CTSYNC;date=2026-07-07;active=534,2;basal=1450;poids=84,3"
-   Tolérant : séparateurs ; & ou saut de ligne, clés alias, décimales à virgule. */
 function parseSyncPayload(text, todayStr){
   if (typeof text !== 'string' || text.indexOf('CTSYNC') === -1) { return null; }
   var out = { day: todayStr, activeKcal: null, basalKcal: null, poidsKg: null };
@@ -289,13 +354,112 @@ function stripFences(raw){
   return raw.replace(/```json/gi, '').replace(/```/g, '').trim();
 }
 
+/* --- Nutrition : constantes et calculs --- */
+
+var ACTIVITES = [
+  { id: 0, label: 'Sédentaire',   facteur: 1.2,   protGkg: 0.8 },
+  { id: 1, label: 'Léger',        facteur: 1.375, protGkg: 1.2 },
+  { id: 2, label: 'Modéré',       facteur: 1.55,  protGkg: 1.5 },
+  { id: 3, label: 'Actif',        facteur: 1.725, protGkg: 1.8 },
+  { id: 4, label: 'Très actif',   facteur: 1.9,   protGkg: 2.0 }
+];
+
+/* Repères indicatifs adultes (limite haute pour le sodium). */
+var MICROS_DEF = [
+  { k: 'sodium_mg',    label: 'Sodium',      unit: 'mg', limite: true,  ref: { homme: 2300, femme: 2300 } },
+  { k: 'potassium_mg', label: 'Potassium',   unit: 'mg', limite: false, ref: { homme: 3500, femme: 3500 } },
+  { k: 'calcium_mg',   label: 'Calcium',     unit: 'mg', limite: false, ref: { homme: 1000, femme: 1000 } },
+  { k: 'fer_mg',       label: 'Fer',         unit: 'mg', limite: false, ref: { homme: 11,   femme: 16 } },
+  { k: 'magnesium_mg', label: 'Magnésium',   unit: 'mg', limite: false, ref: { homme: 400,  femme: 360 } },
+  { k: 'zinc_mg',      label: 'Zinc',        unit: 'mg', limite: false, ref: { homme: 11,   femme: 8 } },
+  { k: 'vit_a_ug',     label: 'Vitamine A',  unit: 'µg', limite: false, ref: { homme: 800,  femme: 700 } },
+  { k: 'vit_c_mg',     label: 'Vitamine C',  unit: 'mg', limite: false, ref: { homme: 110,  femme: 110 } },
+  { k: 'vit_d_ug',     label: 'Vitamine D',  unit: 'µg', limite: false, ref: { homme: 15,   femme: 15 } },
+  { k: 'vit_b12_ug',   label: 'Vitamine B12', unit: 'µg', limite: false, ref: { homme: 4,   femme: 4 } },
+  { k: 'folates_ug',   label: 'Folates (B9)', unit: 'µg', limite: false, ref: { homme: 330,  femme: 330 } }
+];
+
+/* Cibles du jour : kcal = objectif ; protéines = poids × g/kg selon activité ;
+   lipides = 30 % de l'objectif ; glucides = le reste. Fibres : repère 30 g. */
+function computeNeeds(sexe, poidsKg, tailleCm, age, activiteId, objectifKcal){
+  var act = ACTIVITES[activiteId] || ACTIVITES[2];
+  var bmr = mifflinStJeor(sexe, poidsKg, tailleCm, age);
+  var tdee = Math.round(bmr * act.facteur);
+  var prot = Math.round(poidsKg * act.protGkg);
+  var lip = Math.round(0.30 * objectifKcal / 9);
+  var gluc = Math.max(0, Math.round((objectifKcal - prot * 4 - lip * 9) / 4));
+  return { tdee: tdee, kcal: objectifKcal, prot_g: prot, gluc_g: gluc, lip_g: lip, fibres_g: 30 };
+}
+
+function emptyMicros(){
+  var m = {};
+  MICROS_DEF.forEach(function(d){ m[d.k] = 0; });
+  return m;
+}
+
+function num(v){ return (typeof v === 'number' && isFinite(v)) ? v : 0; }
+
+/* Normalise la réponse du modèle : remplit les champs manquants à 0. */
+function normalizeParsed(p){
+  var t = (p.totaux && typeof p.totaux === 'object') ? p.totaux : {};
+  var micros = emptyMicros();
+  if (t.micros && typeof t.micros === 'object') {
+    MICROS_DEF.forEach(function(d){ micros[d.k] = num(t.micros[d.k]); });
+  }
+  return {
+    items: (p.items || []).map(function(it){
+      return {
+        nom: String(it.nom || '?'),
+        quantite: String(it.quantite || ''),
+        kcal: num(it.kcal),
+        proteines_g: num(it.proteines_g),
+        glucides_g: num(it.glucides_g),
+        lipides_g: num(it.lipides_g)
+      };
+    }),
+    totaux: {
+      kcal: num(t.kcal), proteines_g: num(t.proteines_g),
+      glucides_g: num(t.glucides_g), lipides_g: num(t.lipides_g),
+      fibres_g: num(t.fibres_g), sucres_g: num(t.sucres_g), satures_g: num(t.satures_g),
+      micros: micros
+    },
+    hypotheses: Array.isArray(p.hypotheses) ? p.hypotheses.map(String) : [],
+    confiance: (p.confiance === 'haute' || p.confiance === 'moyenne' || p.confiance === 'basse')
+      ? p.confiance : 'moyenne'
+  };
+}
+
 function isMealShape(v){
   return v !== null && typeof v === 'object' &&
     Array.isArray(v.items) &&
-    typeof v.total_kcal === 'number' &&
-    typeof v.total_proteines_g === 'number' &&
-    Array.isArray(v.hypotheses) &&
-    (v.confiance === 'haute' || v.confiance === 'moyenne' || v.confiance === 'basse');
+    v.totaux !== null && typeof v.totaux === 'object' &&
+    typeof v.totaux.kcal === 'number';
+}
+
+/* Agrège la journée. Les repas d'ancien format (sans totaux) comptent pour
+   kcal + protéines et sont signalés via legacyCount. */
+function sumDayNutrition(meals){
+  var out = {
+    kcal: 0, prot: 0, gluc: 0, lip: 0, fibres: 0,
+    micros: emptyMicros(), legacyCount: 0
+  };
+  meals.forEach(function(m){
+    if (m.totaux && typeof m.totaux === 'object') {
+      out.kcal += num(m.totaux.kcal);
+      out.prot += num(m.totaux.proteines_g);
+      out.gluc += num(m.totaux.glucides_g);
+      out.lip += num(m.totaux.lipides_g);
+      out.fibres += num(m.totaux.fibres_g);
+      if (m.totaux.micros) {
+        MICROS_DEF.forEach(function(d){ out.micros[d.k] += num(m.totaux.micros[d.k]); });
+      }
+    } else {
+      out.kcal += num(m.total_kcal);
+      out.prot += num(m.total_proteines_g);
+      out.legacyCount += 1;
+    }
+  });
+  return out;
 }
 
 /* =============================== ==ENDPURE== ============================== */
@@ -307,7 +471,7 @@ var LS = {
 
 var DEFAULT_PROFILE = {
   sexe: 'homme', age: 35, tailleCm: 180, poidsKgManuel: 80,
-  objectifKcal: 2200, modele: 'claude-sonnet-4-6'
+  objectifKcal: 2200, modele: 'claude-sonnet-4-6', activite: 2
 };
 
 function loadJSON(key, fallback){
@@ -328,7 +492,8 @@ var state = {
   meals: loadJSON(LS.meals, []),
   health: loadJSON(LS.health, {}),
   lastWeight: loadJSON(LS.lastWeight, null),
-  preview: null
+  preview: null,
+  openedMealId: null
 };
 
 /* ------------------------------ API Anthropic --------------------------- */
@@ -336,24 +501,31 @@ var state = {
 var API_URL = 'https://api.anthropic.com/v1/messages';
 
 var PARSE_SYSTEM = [
-  "Tu es un moteur d'estimation calorique pour une application de suivi.",
+  "Tu es un moteur d'estimation nutritionnelle pour une application de suivi.",
   "L'utilisateur dicte un repas en français, parfois avec des fautes de transcription vocale.",
   "",
   "Réponds UNIQUEMENT avec un objet JSON valide, sans backticks, sans texte autour, au format exact :",
-  '{"items":[{"nom":string,"quantite":string,"kcal":number,"proteines_g":number}],',
-  '"total_kcal":number,"total_proteines_g":number,"hypotheses":[string],',
-  '"confiance":"haute"|"moyenne"|"basse"}',
+  '{"items":[{"nom":string,"quantite":string,"kcal":number,"proteines_g":number,"glucides_g":number,"lipides_g":number}],',
+  '"totaux":{"kcal":number,"proteines_g":number,"glucides_g":number,"lipides_g":number,',
+  '"fibres_g":number,"sucres_g":number,"satures_g":number,',
+  '"micros":{"sodium_mg":number,"potassium_mg":number,"calcium_mg":number,"fer_mg":number,',
+  '"magnesium_mg":number,"zinc_mg":number,"vit_a_ug":number,"vit_c_mg":number,',
+  '"vit_d_ug":number,"vit_b12_ug":number,"folates_ug":number}},',
+  '"hypotheses":[string],"confiance":"haute"|"moyenne"|"basse"}',
   "",
   "Règles :",
   "- Si une quantité n'est pas précisée, retiens une portion standard française et note-le dans hypotheses.",
   "- N'invente jamais d'aliment non mentionné. Corrige les erreurs de dictée évidentes.",
-  "- kcal et proteines_g sont des nombres. total_kcal = somme des items.",
+  "- Les macros par aliment reflètent la composition typique (type table Ciqual). totaux = somme des items.",
+  "- Les micronutriments sont des ordres de grandeur pour l'ensemble du repas : arrondis raisonnablement,",
+  "  mets 0 si négligeable, n'invente pas de fausse précision.",
+  "- Tous les champs numériques sont des nombres, jamais des chaînes.",
   "- confiance reflète l'imprécision des portions : basse si tout est supposé."
 ].join('\n');
 
 var PLAN_SYSTEM = [
   "Tu es un conseiller nutritionnel pragmatique pour un sportif (rugby semi-pro).",
-  "On te donne le bilan calorique du jour et de la semaine face à un objectif.",
+  "On te donne le bilan calorique et macro du jour et de la semaine face à un objectif.",
   "Propose un plan de rattrapage court et actionnable en français : quoi ajuster sur le reste",
   "de la journée et de la semaine (repas, ordres de grandeur en kcal, protéines à préserver).",
   "Maximum 8 lignes. Pas de moralisation. Si le déficit visé est agressif (plus de 800 kcal/jour",
@@ -392,12 +564,12 @@ async function callClaude(system, userText, maxTokens){
 }
 
 async function parseMeal(description){
-  var raw = await callClaude(PARSE_SYSTEM, description, 1000);
+  var raw = await callClaude(PARSE_SYSTEM, description, 1600);
   var parsed;
   try { parsed = JSON.parse(stripFences(raw)); }
   catch (e) { throw new Error('Le modèle a renvoyé un JSON invalide. Réessaie.'); }
   if (!isMealShape(parsed)) { throw new Error('Réponse du modèle au mauvais format. Réessaie.'); }
-  return parsed;
+  return normalizeParsed(parsed);
 }
 
 /* ------------------------------ Synchro Santé --------------------------- */
@@ -472,6 +644,11 @@ function currentWeightKg(){
   return (state.lastWeight !== null) ? state.lastWeight.kg : state.profile.poidsKgManuel;
 }
 
+function currentNeeds(){
+  var p = state.profile;
+  return computeNeeds(p.sexe, currentWeightKg(), p.tailleCm, p.age, p.activite, p.objectifKcal);
+}
+
 function todayExpenditure(){
   var now = new Date();
   var h = state.health[toDayString(now)] || {};
@@ -479,11 +656,22 @@ function todayExpenditure(){
   return computeExpenditure(h.activeKcal || 0, h.basalKcal || 0, bmrProrata(bmrJour, now));
 }
 
+function macroRow(nom, conso, cible, unit, limite){
+  var pct = cible > 0 ? Math.min(100, Math.round(conso / cible * 100)) : 0;
+  var cls = 'fill';
+  if (conso > cible && cible > 0) { cls += limite ? ' limit-over' : ' over'; }
+  var sep = limite ? ' / ≤ ' : ' / ';
+  return '<div class="mrow"><div class="top"><span class="n">' + nom +
+    '</span><span class="v">' + Math.round(conso) + sep + cible + ' ' + unit +
+    '</span></div><div class="track"><div class="' + cls + '" style="width:' + pct + '%"></div></div></div>';
+}
+
 function renderJour(){
   var today = toDayString(new Date());
   var meals = mealsForDay(today);
-  var mange = Math.round(meals.reduce(function(s, m){ return s + m.total_kcal; }, 0));
-  var prot = Math.round(meals.reduce(function(s, m){ return s + m.total_proteines_g; }, 0));
+  var agg = sumDayNutrition(meals);
+  var needs = currentNeeds();
+  var mange = Math.round(agg.kcal);
   var reste = state.profile.objectifKcal - mange;
   var dep = todayExpenditure();
 
@@ -499,8 +687,29 @@ function renderJour(){
 
   var w = currentWeightKg();
   var wSrc = (state.lastWeight !== null) ? ' (Santé, ' + state.lastWeight.day + ')' : ' (manuel)';
-  $('jour-sub').textContent = 'Protéines : ' + prot + ' g · Poids : ' + w.toFixed(1) + ' kg' + wSrc +
+  $('jour-sub').textContent = 'Poids : ' + w.toFixed(1) + ' kg' + wSrc +
     (dep.active > 0 ? ' · Actif : ' + dep.active + ' kcal' : '');
+
+  $('macros-panel').innerHTML =
+    macroRow('Protéines', agg.prot, needs.prot_g, 'g', false) +
+    macroRow('Glucides', agg.gluc, needs.gluc_g, 'g', false) +
+    macroRow('Lipides', agg.lip, needs.lip_g, 'g', false) +
+    macroRow('Fibres', agg.fibres, needs.fibres_g, 'g', false);
+
+  var mh = '';
+  MICROS_DEF.forEach(function(d){
+    mh += macroRow(d.label, agg.micros[d.k], d.ref[state.profile.sexe], d.unit, d.limite);
+  });
+  $('micros-panel').innerHTML = mh;
+
+  var legacy = $('legacy-note');
+  if (agg.legacyCount > 0) {
+    legacy.hidden = false;
+    legacy.textContent = agg.legacyCount + ' repas au format précédent (macros non détaillées) — ' +
+      'touche-le puis « Réanalyser » pour compléter.';
+  } else {
+    legacy.hidden = true;
+  }
 
   var h = state.health[today];
   $('sync-info').textContent = (h && (h.activeKcal || h.basalKcal))
@@ -521,13 +730,18 @@ function renderJour(){
     row.className = 'meal';
     var txt = document.createElement('div');
     txt.className = 'txt';
+    txt.addEventListener('click', function(){ openMealDetail(m.id); });
     var d1 = document.createElement('div');
     d1.className = 'desc';
     d1.textContent = m.description;
     var d2 = document.createElement('div');
     d2.className = 'kcal';
     var heure = new Date(m.ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    d2.textContent = Math.round(m.total_kcal) + ' kcal · ' + heure;
+    var macroTxt = (m.totaux)
+      ? ' · P ' + Math.round(m.totaux.proteines_g) + ' · G ' + Math.round(m.totaux.glucides_g) +
+        ' · L ' + Math.round(m.totaux.lipides_g)
+      : '';
+    d2.textContent = Math.round(num(m.total_kcal)) + ' kcal' + macroTxt + ' · ' + heure;
     txt.appendChild(d1); txt.appendChild(d2);
     var del = document.createElement('button');
     del.textContent = '✕';
@@ -544,6 +758,99 @@ function renderJour(){
   });
 }
 
+/* ---------------------------- Détail d'un repas -------------------------- */
+
+function mealDetailHtml(m){
+  var html = '';
+  if (Array.isArray(m.items) && m.items.length > 0) {
+    html += '<table class="items"><tr><th>Aliment</th><th>kcal</th><th>P</th><th>G</th><th>L</th></tr>';
+    m.items.forEach(function(it){
+      html += '<tr><td>' + esc(it.nom) + (it.quantite ? ' <span style="color:var(--grey)">(' + esc(it.quantite) + ')</span>' : '') +
+        '</td><td>' + Math.round(num(it.kcal)) + '</td><td>' + Math.round(num(it.proteines_g)) +
+        '</td><td>' + Math.round(num(it.glucides_g)) + '</td><td>' + Math.round(num(it.lipides_g)) + '</td></tr>';
+    });
+    html += '</table>';
+  }
+  if (m.totaux) {
+    var t = m.totaux;
+    html += '<div class="panel"><p style="font-size:14px;font-weight:700;margin-bottom:6px">Totaux : ' +
+      Math.round(t.kcal) + ' kcal · P ' + Math.round(t.proteines_g) + ' g · G ' +
+      Math.round(t.glucides_g) + ' g · L ' + Math.round(t.lipides_g) + ' g</p>' +
+      '<p class="subinfo" style="margin:0">Fibres ' + Math.round(t.fibres_g) + ' g · Sucres ' +
+      Math.round(t.sucres_g) + ' g · Ac. gras saturés ' + Math.round(t.satures_g) + ' g</p></div>';
+    var mh = '';
+    MICROS_DEF.forEach(function(d){
+      var v = t.micros ? num(t.micros[d.k]) : 0;
+      if (v > 0) { mh += '<div class="top" style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>' +
+        d.label + '</span><span style="color:var(--grey)">' + Math.round(v) + ' ' + d.unit + '</span></div>'; }
+    });
+    if (mh !== '') {
+      html += '<details class="micros"><summary>Micronutriments du repas</summary><div class="inner">' + mh + '</div></details>';
+    }
+  } else {
+    html += '<p class="subinfo">Repas enregistré avec l\'ancienne version : ' +
+      Math.round(num(m.total_kcal)) + ' kcal, ' + Math.round(num(m.total_proteines_g)) +
+      ' g de protéines. Touche « Réanalyser » pour obtenir le détail complet.</p>';
+  }
+  if (Array.isArray(m.hypotheses) && m.hypotheses.length > 0) {
+    m.hypotheses.forEach(function(hyp){
+      html += '<p class="hyp" style="color:#8A6D1A;font-size:12px;margin-top:3px">Hypothèse : ' + esc(hyp) + '</p>';
+    });
+  }
+  if (m.confiance) {
+    html += '<p class="subinfo" style="margin-top:6px">Confiance de l\'estimation : ' + m.confiance + '</p>';
+  }
+  return html;
+}
+
+function esc(s){
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function openMealDetail(id){
+  var m = state.meals.find(function(x){ return x.id === id; });
+  if (!m) { return; }
+  state.openedMealId = id;
+  $('modal-title').textContent = m.description;
+  $('modal-when').textContent = m.day + ' · ' +
+    new Date(m.ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  $('modal-body').innerHTML = mealDetailHtml(m);
+  $('modal-bg').hidden = false;
+}
+
+function closeModal(){
+  state.openedMealId = null;
+  $('modal-bg').hidden = true;
+}
+
+async function reanalyseMeal(){
+  var m = state.meals.find(function(x){ return x.id === state.openedMealId; });
+  if (!m) { return; }
+  var btn = $('btn-reanalyse');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin" style="border-color:var(--teal);border-top-color:transparent"></span>';
+  try {
+    var parsed = await parseMeal(m.description);
+    m.items = parsed.items;
+    m.totaux = parsed.totaux;
+    m.hypotheses = parsed.hypotheses;
+    m.confiance = parsed.confiance;
+    m.total_kcal = parsed.totaux.kcal;
+    m.total_proteines_g = parsed.totaux.proteines_g;
+    saveJSON(LS.meals, state.meals);
+    $('modal-body').innerHTML = mealDetailHtml(m);
+    renderJour();
+    toast('Repas réanalysé.');
+  } catch (e) {
+    toast(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Réanalyser ce repas';
+  }
+}
+
+/* -------------------------------- Semaine ------------------------------- */
+
 function lastSevenDays(){
   var out = [];
   var now = new Date();
@@ -551,8 +858,13 @@ function lastSevenDays(){
     var d = new Date(now);
     d.setDate(d.getDate() - i);
     var key = toDayString(d);
-    var kcal = Math.round(mealsForDay(key).reduce(function(s, m){ return s + m.total_kcal; }, 0));
-    out.push({ day: key, label: d.toLocaleDateString('fr-FR', { weekday: 'short' }), kcal: kcal });
+    var agg = sumDayNutrition(mealsForDay(key));
+    out.push({
+      day: key,
+      label: d.toLocaleDateString('fr-FR', { weekday: 'short' }),
+      kcal: Math.round(agg.kcal),
+      prot: Math.round(agg.prot)
+    });
   }
   return out;
 }
@@ -562,6 +874,7 @@ function renderSemaine(){
   var maxK = Math.max(state.profile.objectifKcal, 1);
   jours.forEach(function(j){ if (j.kcal > maxK) { maxK = j.kcal; } });
   var total = jours.reduce(function(s, j){ return s + j.kcal; }, 0);
+  var protMoy = Math.round(jours.reduce(function(s, j){ return s + j.prot; }, 0) / 7);
 
   var chart = $('week-chart');
   chart.innerHTML = '';
@@ -581,8 +894,10 @@ function renderSemaine(){
     chart.appendChild(col);
   });
   $('week-sub').textContent = 'Objectif : ' + state.profile.objectifKcal + ' kcal/j · Total semaine : ' +
-    total + ' / ' + (state.profile.objectifKcal * 7) + ' kcal';
+    total + ' / ' + (state.profile.objectifKcal * 7) + ' kcal · Protéines moy. : ' + protMoy + ' g/j';
 }
+
+/* -------------------------------- Réglages ------------------------------ */
 
 function renderReglages(){
   $('in-key').value = '';
@@ -593,6 +908,31 @@ function renderReglages(){
   $('in-objectif').value = String(state.profile.objectifKcal);
   setChips('chips-sexe', 'sexe', state.profile.sexe);
   setChips('chips-modele', 'modele', state.profile.modele);
+
+  var box = $('chips-activite');
+  box.innerHTML = '';
+  ACTIVITES.forEach(function(a){
+    var b = document.createElement('button');
+    b.textContent = a.label;
+    b.dataset.activite = String(a.id);
+    b.setAttribute('aria-pressed', state.profile.activite === a.id ? 'true' : 'false');
+    b.addEventListener('click', function(){
+      state.profile.activite = a.id;
+      setChips('chips-activite', 'activite', String(a.id));
+      updateBesoinsInfo();
+    });
+    box.appendChild(b);
+  });
+  updateBesoinsInfo();
+}
+
+function updateBesoinsInfo(){
+  var needs = currentNeeds();
+  var act = ACTIVITES[state.profile.activite] || ACTIVITES[2];
+  $('besoins-info').textContent = 'Besoin de maintien estimé (' + act.label.toLowerCase() +
+    ', poids ' + currentWeightKg().toFixed(1) + ' kg) : ' + needs.tdee +
+    ' kcal/j · Cibles sur l\'objectif actuel : ' + needs.prot_g + ' g protéines, ' +
+    needs.gluc_g + ' g glucides, ' + needs.lip_g + ' g lipides.';
 }
 
 function setChips(containerId, dataKey, value){
@@ -617,12 +957,15 @@ async function analyser(){
     box.innerHTML = '';
     state.preview.items.forEach(function(it){
       var p = document.createElement('p');
-      p.textContent = '• ' + it.nom + ' (' + it.quantite + ') — ' +
-        Math.round(it.kcal) + ' kcal, ' + Math.round(it.proteines_g) + ' g prot.';
+      p.textContent = '• ' + it.nom + ' (' + it.quantite + ') — ' + Math.round(it.kcal) +
+        ' kcal · P ' + Math.round(it.proteines_g) + ' · G ' + Math.round(it.glucides_g) +
+        ' · L ' + Math.round(it.lipides_g);
       box.appendChild(p);
     });
-    $('preview-total').textContent = 'Total : ' + Math.round(state.preview.total_kcal) +
-      ' kcal — confiance ' + state.preview.confiance;
+    var t = state.preview.totaux;
+    $('preview-total').textContent = 'Total : ' + Math.round(t.kcal) + ' kcal · P ' +
+      Math.round(t.proteines_g) + ' g · G ' + Math.round(t.glucides_g) + ' g · L ' +
+      Math.round(t.lipides_g) + ' g — confiance ' + state.preview.confiance;
     var hyps = $('preview-hyps');
     hyps.innerHTML = '';
     state.preview.hypotheses.forEach(function(h){
@@ -648,9 +991,12 @@ function saveMeal(){
     day: toDayString(new Date()),
     ts: Date.now(),
     description: texte,
-    total_kcal: state.preview.total_kcal,
-    total_proteines_g: state.preview.total_proteines_g,
-    items: state.preview.items
+    total_kcal: state.preview.totaux.kcal,
+    total_proteines_g: state.preview.totaux.proteines_g,
+    items: state.preview.items,
+    totaux: state.preview.totaux,
+    hypotheses: state.preview.hypotheses,
+    confiance: state.preview.confiance
   });
   saveJSON(LS.meals, state.meals);
   state.preview = null;
@@ -668,8 +1014,13 @@ async function genererPlan(){
     var jours = lastSevenDays();
     var total = jours.reduce(function(s, j){ return s + j.kcal; }, 0);
     var dep = todayExpenditure();
+    var agg = sumDayNutrition(mealsForDay(toDayString(new Date())));
+    var needs = currentNeeds();
     var contexte =
-      'Objectif quotidien : ' + state.profile.objectifKcal + ' kcal.\n' +
+      'Objectif quotidien : ' + state.profile.objectifKcal + ' kcal ' +
+      '(cibles : ' + needs.prot_g + ' g protéines, ' + needs.gluc_g + ' g glucides, ' + needs.lip_g + ' g lipides).\n' +
+      'Aujourd\'hui : ' + Math.round(agg.kcal) + ' kcal, P ' + Math.round(agg.prot) +
+      ' g, G ' + Math.round(agg.gluc) + ' g, L ' + Math.round(agg.lip) + ' g.\n' +
       'Apports des 7 derniers jours : ' +
       jours.map(function(j){ return j.label + ' ' + j.kcal; }).join(', ') + ' kcal.\n' +
       'Total semaine : ' + total + ' kcal (cible ' + (state.profile.objectifKcal * 7) + ').\n' +
@@ -706,7 +1057,7 @@ function saveSettings(){
 
 function exportData(){
   var payload = {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     profile: state.profile,
     meals: state.meals,
@@ -776,6 +1127,11 @@ function init(){
   });
   $('btn-plan').addEventListener('click', function(){ genererPlan(); });
   $('btn-save-settings').addEventListener('click', saveSettings);
+  $('btn-use-tdee').addEventListener('click', function(){
+    var needs = currentNeeds();
+    $('in-objectif').value = String(needs.tdee);
+    toast('Objectif proposé : ' + needs.tdee + ' kcal — touche « Enregistrer les réglages ».');
+  });
   $('btn-clear-key').addEventListener('click', function(){
     if (window.confirm('Effacer la clé API enregistrée sur ce téléphone ?')) {
       state.apiKey = '';
@@ -790,6 +1146,11 @@ function init(){
     var f = ev.target.files && ev.target.files[0];
     if (f) { importData(f); }
     ev.target.value = '';
+  });
+  $('btn-close-modal').addEventListener('click', closeModal);
+  $('btn-reanalyse').addEventListener('click', function(){ reanalyseMeal(); });
+  $('modal-bg').addEventListener('click', function(ev){
+    if (ev.target === $('modal-bg')) { closeModal(); }
   });
   document.addEventListener('visibilitychange', function(){
     if (!document.hidden) { renderJour(); }
